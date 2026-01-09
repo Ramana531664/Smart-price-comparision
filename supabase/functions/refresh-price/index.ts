@@ -73,10 +73,31 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Extract price
+    // Extract price - handle multiple currency formats
     const markdown = scrapeData.data?.markdown || scrapeData.markdown || '';
-    const priceMatch = markdown.match(/\$[\d,]+\.?\d*/);
-    const newPrice = priceMatch ? parseFloat(priceMatch[0].replace(/[$,]/g, '')) : null;
+    const html = scrapeData.data?.html || scrapeData.html || '';
+    const textContent = markdown + ' ' + html;
+    
+    // Price patterns for multiple currencies
+    const patterns = [
+      /(?:₹|Rs\.?|INR)\s*([\d,]+(?:\.\d{2})?)/i,
+      /\$\s*([\d,]+(?:\.\d{2})?)/,
+      /€\s*([\d,]+(?:\.\d{2})?)/,
+      /£\s*([\d,]+(?:\.\d{2})?)/,
+    ];
+    
+    let newPrice: number | null = null;
+    for (const pattern of patterns) {
+      const match = textContent.match(pattern);
+      if (match) {
+        const priceStr = match[1].replace(/,/g, '');
+        const price = parseFloat(priceStr);
+        if (!isNaN(price) && price > 0) {
+          newPrice = price;
+          break;
+        }
+      }
+    }
 
     if (newPrice === null) {
       console.log('Could not extract price from page');

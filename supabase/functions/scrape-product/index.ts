@@ -3,6 +3,68 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Extract price from text - handles multiple currencies and formats
+function extractPrice(text: string): number | null {
+  // Common price patterns for various currencies
+  const patterns = [
+    // Indian Rupee: ₹1,234.56 or Rs. 1234 or INR 1234
+    /(?:₹|Rs\.?|INR)\s*([\d,]+(?:\.\d{2})?)/gi,
+    // US Dollar: $1,234.56
+    /\$\s*([\d,]+(?:\.\d{2})?)/g,
+    // Euro: €1,234.56 or 1234,56€
+    /€\s*([\d,]+(?:\.\d{2})?)/g,
+    // British Pound: £1,234.56
+    /£\s*([\d,]+(?:\.\d{2})?)/g,
+    // Generic number with currency symbol nearby
+    /(?:price|cost|mrp|sale)[\s:]*(?:₹|\$|€|£|Rs\.?)?\s*([\d,]+(?:\.\d{2})?)/gi,
+  ];
+
+  const prices: number[] = [];
+  
+  for (const pattern of patterns) {
+    let match;
+    while ((match = pattern.exec(text)) !== null) {
+      const priceStr = match[1].replace(/,/g, '');
+      const price = parseFloat(priceStr);
+      if (!isNaN(price) && price > 0 && price < 10000000) {
+        prices.push(price);
+      }
+    }
+  }
+
+  // Return the most likely price (often the first reasonable one)
+  if (prices.length > 0) {
+    // Filter out very small numbers that might be percentages
+    const validPrices = prices.filter(p => p > 1);
+    return validPrices.length > 0 ? validPrices[0] : prices[0];
+  }
+
+  return null;
+}
+
+// Extract original price (usually crossed out/strikethrough price)
+function extractOriginalPrice(text: string): number | null {
+  const patterns = [
+    // M.R.P or MRP patterns common on Indian sites
+    /(?:M\.?R\.?P\.?|Original|Was|List\s*Price)[\s:]*(?:₹|\$|€|£|Rs\.?)?\s*([\d,]+(?:\.\d{2})?)/gi,
+    // Strikethrough patterns in markdown
+    /~~(?:₹|\$|€|£|Rs\.?)?\s*([\d,]+(?:\.\d{2})?)~~/g,
+  ];
+
+  for (const pattern of patterns) {
+    const match = pattern.exec(text);
+    if (match) {
+      const priceStr = match[1].replace(/,/g, '');
+      const price = parseFloat(priceStr);
+      if (!isNaN(price) && price > 0) {
+        return price;
+      }
+    }
+  }
+
+  return null;
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -59,11 +121,17 @@ Deno.serve(async (req) => {
 
     // Extract product info from scraped content
     const markdown = data.data?.markdown || data.markdown || '';
+    const html = data.data?.html || data.html || '';
     const metadata = data.data?.metadata || data.metadata || {};
     
-    // Try to extract price from content
-    const priceMatch = markdown.match(/\$[\d,]+\.?\d*/);
-    const price = priceMatch ? parseFloat(priceMatch[0].replace(/[$,]/g, '')) : null;
+    // Combine sources for price extraction
+    const textContent = markdown + ' ' + html;
+    
+    // Extract current price and original price
+    const currentPrice = extractPrice(textContent);
+    const originalPrice = extractOriginalPrice(textContent) || currentPrice;
+    
+    console.log('Extracted prices:', { currentPrice, originalPrice });
     
     // Try to extract image
     const ogImage = metadata.ogImage || metadata.image || null;
@@ -76,8 +144,8 @@ Deno.serve(async (req) => {
     const result = {
       success: true,
       name: metadata.title || metadata.ogTitle || 'Unknown Product',
-      price,
-      original_price: price,
+      price: currentPrice,
+      original_price: originalPrice,
       image_url: ogImage,
       store: storeName,
       description: metadata.description || metadata.ogDescription || null,
