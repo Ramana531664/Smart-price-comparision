@@ -1,82 +1,79 @@
 import { useState } from 'react';
 import { Header } from '@/components/Header';
-import { AddProductDialog } from '@/components/AddProductDialog';
-import { ProductCard } from '@/components/ProductCard';
-import { PriceHistoryChart } from '@/components/PriceHistoryChart';
-import { EmptyState } from '@/components/EmptyState';
-import { StatsBar } from '@/components/StatsBar';
-import { useProducts, Product } from '@/hooks/useProducts';
-import { Loader2, Search } from 'lucide-react';
-import { Input } from '@/components/ui/input';
+import { ProductSearch } from '@/components/ProductSearch';
+import { ComparisonResults } from '@/components/ComparisonResults';
+import { Loader2 } from 'lucide-react';
+
+interface ProductResult {
+  name: string;
+  price: number;
+  originalPrice?: number;
+  rating?: number;
+  reviews?: number;
+  store: string;
+  url: string;
+  imageUrl?: string;
+  delivery?: string;
+  inStock: boolean;
+}
+
+interface ComparisonResult {
+  products: ProductResult[];
+  recommendation: {
+    bestValue: ProductResult | null;
+    cheapest: ProductResult | null;
+    highestRated: ProductResult | null;
+    reasoning: string;
+  };
+}
 
 const Index = () => {
-  const { data: products, isLoading } = useProducts();
-  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
-  const [historyOpen, setHistoryOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-
-  const handleViewHistory = (product: Product) => {
-    setSelectedProduct(product);
-    setHistoryOpen(true);
-  };
-
-  const filteredProducts = products?.filter(p => 
-    p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    p.store?.toLowerCase().includes(searchQuery.toLowerCase())
-  ) || [];
+  const [results, setResults] = useState<ComparisonResult | null>(null);
+  const [isSearching, setIsSearching] = useState(false);
 
   return (
     <div className="min-h-screen bg-background">
       <Header />
       
       <main className="container mx-auto px-4 py-8">
-        {/* Stats */}
-        {products && products.length > 0 && <StatsBar products={products} />}
-        
-        {/* Actions Bar */}
-        <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center mb-6">
-          <div className="relative w-full sm:w-80">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search products..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10"
-            />
-          </div>
-          <AddProductDialog />
-        </div>
+        {/* Search Section */}
+        <section className="py-8 md:py-12">
+          <ProductSearch 
+            onResults={setResults}
+            isSearching={isSearching}
+            setIsSearching={setIsSearching}
+          />
+        </section>
 
-        {/* Content */}
-        {isLoading ? (
-          <div className="flex items-center justify-center py-16">
-            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        {/* Loading State */}
+        {isSearching && (
+          <div className="flex flex-col items-center justify-center py-16 gap-4">
+            <Loader2 className="h-12 w-12 animate-spin text-primary" />
+            <p className="text-muted-foreground text-lg">
+              Searching across multiple stores...
+            </p>
+            <p className="text-sm text-muted-foreground">
+              This may take 15-30 seconds
+            </p>
           </div>
-        ) : !products || products.length === 0 ? (
-          <EmptyState />
-        ) : filteredProducts.length === 0 ? (
-          <div className="text-center py-16 text-muted-foreground">
-            No products match your search
-          </div>
-        ) : (
-          <div className="grid gap-4">
-            {filteredProducts.map((product) => (
-              <ProductCard 
-                key={product.id} 
-                product={product}
-                onViewHistory={handleViewHistory}
-              />
-            ))}
+        )}
+
+        {/* Results Section */}
+        {!isSearching && results && results.products.length > 0 && (
+          <section className="py-8">
+            <ComparisonResults results={results} />
+          </section>
+        )}
+
+        {/* No Results */}
+        {!isSearching && results && results.products.length === 0 && (
+          <div className="text-center py-16">
+            <p className="text-muted-foreground text-lg">
+              No products found. Try a different search term.
+            </p>
           </div>
         )}
       </main>
-
-      {/* Price History Modal */}
-      <PriceHistoryChart 
-        product={selectedProduct}
-        open={historyOpen}
-        onOpenChange={setHistoryOpen}
-      />
     </div>
   );
 };
