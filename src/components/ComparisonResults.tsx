@@ -64,8 +64,9 @@ function getStoreName(store: string): string {
 }
 
 function ProductCard({ product, badges }: { product: ProductResult; badges: string[] }) {
-  const discount = product.originalPrice 
-    ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
+  const price = product.price ?? 0;
+  const discount = product.originalPrice && price
+    ? Math.round(((product.originalPrice - price) / product.originalPrice) * 100)
     : 0;
 
   return (
@@ -107,9 +108,9 @@ function ProductCard({ product, badges }: { product: ProductResult; badges: stri
         {/* Price Section */}
         <div className="flex items-end gap-2 mb-3">
           <span className="text-2xl font-display font-bold">
-            ₹{product.price.toLocaleString('en-IN')}
+            ₹{price.toLocaleString('en-IN')}
           </span>
-          {product.originalPrice && product.originalPrice > product.price && (
+          {product.originalPrice && product.originalPrice > price && (
             <>
               <span className="text-sm text-muted-foreground line-through">
                 ₹{product.originalPrice.toLocaleString('en-IN')}
