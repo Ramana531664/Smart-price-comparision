@@ -14,6 +14,75 @@ export type Database = {
   }
   public: {
     Tables: {
+      orders: {
+        Row: {
+          city: string
+          created_at: string
+          customer_email: string
+          customer_name: string
+          customer_phone: string
+          id: string
+          order_status: string
+          payment_method: string
+          payment_status: string
+          pincode: string
+          product_image_url: string | null
+          product_name: string
+          product_price: number
+          product_store: string
+          product_url: string | null
+          quantity: number
+          shipping_address: string
+          state: string
+          total_amount: number
+          updated_at: string
+        }
+        Insert: {
+          city: string
+          created_at?: string
+          customer_email: string
+          customer_name: string
+          customer_phone: string
+          id?: string
+          order_status?: string
+          payment_method?: string
+          payment_status?: string
+          pincode: string
+          product_image_url?: string | null
+          product_name: string
+          product_price: number
+          product_store: string
+          product_url?: string | null
+          quantity?: number
+          shipping_address: string
+          state: string
+          total_amount: number
+          updated_at?: string
+        }
+        Update: {
+          city?: string
+          created_at?: string
+          customer_email?: string
+          customer_name?: string
+          customer_phone?: string
+          id?: string
+          order_status?: string
+          payment_method?: string
+          payment_status?: string
+          pincode?: string
+          product_image_url?: string | null
+          product_name?: string
+          product_price?: number
+          product_store?: string
+          product_url?: string | null
+          quantity?: number
+          shipping_address?: string
+          state?: string
+          total_amount?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       price_history: {
         Row: {
           id: string

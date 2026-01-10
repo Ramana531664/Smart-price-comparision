@@ -3,14 +3,15 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { 
   Star, 
-  ExternalLink, 
   Truck, 
   Award, 
   TrendingDown,
   ThumbsUp,
-  Package,
+  ShoppingCart,
   Sparkles
 } from 'lucide-react';
+import { useCart } from '@/contexts/CartContext';
+import { toast } from 'sonner';
 
 interface ProductResult {
   name: string;
@@ -68,6 +69,21 @@ function ProductCard({ product, badges }: { product: ProductResult; badges: stri
   const discount = product.originalPrice && price
     ? Math.round(((product.originalPrice - price) / product.originalPrice) * 100)
     : 0;
+  const { addToCart } = useCart();
+
+  const handleAddToCart = () => {
+    addToCart({
+      name: product.name,
+      price: price,
+      originalPrice: product.originalPrice,
+      store: product.store,
+      url: product.url,
+      imageUrl: product.imageUrl
+    });
+    toast.success('Added to cart!', {
+      description: product.name.slice(0, 50) + '...',
+    });
+  };
 
   return (
     <Card className="overflow-hidden hover:shadow-elevated transition-all duration-300 animate-fade-in">
@@ -99,6 +115,17 @@ function ProductCard({ product, badges }: { product: ProductResult; badges: stri
             <Badge variant="destructive">Out of Stock</Badge>
           )}
         </div>
+
+        {/* Product Image */}
+        {product.imageUrl && (
+          <div className="mb-3 aspect-square rounded-lg overflow-hidden bg-secondary/30">
+            <img 
+              src={product.imageUrl} 
+              alt={product.name}
+              className="w-full h-full object-contain"
+            />
+          </div>
+        )}
 
         {/* Product Name */}
         <h3 className="font-semibold text-sm line-clamp-2 mb-3 min-h-[2.5rem]">
@@ -145,17 +172,14 @@ function ProductCard({ product, badges }: { product: ProductResult; badges: stri
           </div>
         )}
 
-        {/* Buy Button */}
+        {/* Add to Cart Button */}
         <Button 
           className="w-full gap-2" 
-          asChild
+          onClick={handleAddToCart}
           disabled={!product.inStock}
         >
-          <a href={product.url} target="_blank" rel="noopener noreferrer">
-            <Package className="h-4 w-4" />
-            Buy on {getStoreName(product.store)}
-            <ExternalLink className="h-3 w-3" />
-          </a>
+          <ShoppingCart className="h-4 w-4" />
+          Add to Cart
         </Button>
       </div>
     </Card>
