@@ -65,11 +65,14 @@ function getStoreName(store: string): string {
 }
 
 function ProductCard({ product, badges }: { product: ProductResult; badges: string[] }) {
-  const price = product.price ?? 0;
-  const discount = product.originalPrice && price
+  const price = product.price || 0;
+  const discount = product.originalPrice && price > 0
     ? Math.round(((product.originalPrice - price) / product.originalPrice) * 100)
     : 0;
   const { addToCart } = useCart();
+  
+  // Don't render products without a valid price
+  if (!price || price <= 0) return null;
 
   const handleAddToCart = () => {
     addToCart({
