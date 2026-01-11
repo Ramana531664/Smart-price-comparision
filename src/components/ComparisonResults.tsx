@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -65,12 +66,18 @@ function getStoreName(store: string): string {
 }
 
 function ProductCard({ product, badges }: { product: ProductResult; badges: string[] }) {
+  const [imageFailed, setImageFailed] = useState(false);
+
   const price = product.price || 0;
   const discount = product.originalPrice && price > 0
     ? Math.round(((product.originalPrice - price) / product.originalPrice) * 100)
     : 0;
   const { addToCart } = useCart();
-  
+
+  const normalizedImageUrl = product.imageUrl?.startsWith('http://')
+    ? product.imageUrl.replace('http://', 'https://')
+    : product.imageUrl;
+
   // Don't render products without a valid price
   if (!price || price <= 0) return null;
 
@@ -121,14 +128,17 @@ function ProductCard({ product, badges }: { product: ProductResult; badges: stri
 
         {/* Product Image */}
         <div className="mb-3 aspect-square rounded-lg overflow-hidden bg-secondary/30 flex items-center justify-center">
-          {product.imageUrl ? (
+          {!normalizedImageUrl || imageFailed ? (
+            <div className="text-muted-foreground text-6xl">📦</div>
+          ) : (
             <img 
-              src={product.imageUrl} 
+              src={normalizedImageUrl} 
               alt={product.name}
+              loading="lazy"
+              referrerPolicy="no-referrer"
+              onError={() => setImageFailed(true)}
               className="w-full h-full object-contain"
             />
-          ) : (
-            <div className="text-muted-foreground text-6xl">📦</div>
           )}
         </div>
 
