@@ -117,15 +117,17 @@ function ProductCard({ product, badges }: { product: ProductResult; badges: stri
         </div>
 
         {/* Product Image */}
-        {product.imageUrl && (
-          <div className="mb-3 aspect-square rounded-lg overflow-hidden bg-secondary/30">
+        <div className="mb-3 aspect-square rounded-lg overflow-hidden bg-secondary/30 flex items-center justify-center">
+          {product.imageUrl ? (
             <img 
               src={product.imageUrl} 
               alt={product.name}
               className="w-full h-full object-contain"
             />
-          </div>
-        )}
+          ) : (
+            <div className="text-muted-foreground text-6xl">📦</div>
+          )}
+        </div>
 
         {/* Product Name */}
         <h3 className="font-semibold text-sm line-clamp-2 mb-3 min-h-[2.5rem]">
