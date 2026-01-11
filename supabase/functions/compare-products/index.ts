@@ -249,11 +249,71 @@ Rules:
     }
 
     // Build final result
-    const products = analysisResult.products || [];
+    const products = Array.isArray(analysisResult.products) ? analysisResult.products : [];
     const rec = analysisResult.recommendation || {};
 
+    const extractImageFromMetadata = (meta: any): string | undefined => {
+      if (!meta) return undefined;
+      const candidates = [
+        meta.ogImage,
+        meta.og_image,
+        meta['og:image'],
+        meta.twitterImage,
+        meta.twitter_image,
+        meta['twitter:image'],
+        meta.image,
+      ].flat().filter(Boolean);
+
+      const first = candidates.find((v: any) => typeof v === 'string' && v.startsWith('http')) as string | undefined;
+      return first;
+    };
+
+    const extractFirstImageFromContent = (markdown: string): string | undefined => {
+      if (!markdown) return undefined;
+      const mdImg = markdown.match(/!\[[^\]]*\]\((https?:\/\/[^\s)]+)\)/i);
+      if (mdImg?.[1]) return mdImg[1];
+      const htmlImg = markdown.match(/<img[^>]+src=["'](https?:\/\/[^"']+)["']/i);
+      if (htmlImg?.[1]) return htmlImg[1];
+      return undefined;
+    };
+
+    const resolveImageUrl = async (productUrl: string): Promise<string | undefined> => {
+      try {
+        const scrapeResponse = await fetch('https://api.firecrawl.dev/v1/scrape', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${firecrawlKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            url: productUrl,
+            formats: ['markdown'],
+            onlyMainContent: true,
+          }),
+        });
+
+        const scrapeData = await scrapeResponse.json();
+        if (!scrapeResponse.ok) return undefined;
+
+        return (
+          extractImageFromMetadata(scrapeData?.data?.metadata) ||
+          extractFirstImageFromContent(scrapeData?.data?.markdown || '')
+        );
+      } catch {
+        return undefined;
+      }
+    };
+
+    // Enrich products with image URLs (many marketplaces don't expose it in search results)
+    const enrichedProducts = await Promise.all(
+      products.map(async (p: any) => {
+        const imageUrl = p.imageUrl || (p.url ? await resolveImageUrl(p.url) : undefined);
+        return { ...p, imageUrl };
+      })
+    );
+
     const result: ComparisonResult = {
-      products: products.map((p: any) => ({
+      products: enrichedProducts.map((p: any) => ({
         name: p.name,
         price: p.price,
         originalPrice: p.originalPrice,
@@ -266,9 +326,9 @@ Rules:
         inStock: p.inStock !== false,
       })),
       recommendation: {
-        bestValue: products[rec.bestValueIndex] || null,
-        cheapest: products[rec.cheapestIndex] || null,
-        highestRated: products[rec.highestRatedIndex] || null,
+        bestValue: enrichedProducts[rec.bestValueIndex] || null,
+        cheapest: enrichedProducts[rec.cheapestIndex] || null,
+        highestRated: enrichedProducts[rec.highestRatedIndex] || null,
         reasoning: rec.reasoning || 'Unable to determine best recommendation.',
       },
     };
