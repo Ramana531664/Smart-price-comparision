@@ -9,10 +9,10 @@ import {
   TrendingDown,
   ThumbsUp,
   ShoppingCart,
-  Sparkles,
-  ExternalLink
+  Sparkles
 } from 'lucide-react';
 import { useCart } from '@/contexts/CartContext';
+import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
 interface ProductResult {
@@ -68,12 +68,13 @@ function getStoreName(store: string): string {
 
 function ProductCard({ product, badges }: { product: ProductResult; badges: string[] }) {
   const [imageFailed, setImageFailed] = useState(false);
+  const { addToCart } = useCart();
+  const navigate = useNavigate();
 
   const price = product.price || 0;
   const discount = product.originalPrice && price > 0
     ? Math.round(((product.originalPrice - price) / product.originalPrice) * 100)
     : 0;
-  const { addToCart } = useCart();
 
   const normalizedImageUrl = product.imageUrl?.startsWith('http://')
     ? product.imageUrl.replace('http://', 'https://')
@@ -94,6 +95,18 @@ function ProductCard({ product, badges }: { product: ProductResult; badges: stri
     toast.success('Added to cart!', {
       description: product.name.slice(0, 50) + '...',
     });
+  };
+
+  const handleBuyNow = () => {
+    addToCart({
+      name: product.name,
+      price: price,
+      originalPrice: product.originalPrice,
+      store: product.store,
+      url: product.url,
+      imageUrl: product.imageUrl
+    });
+    navigate('/checkout');
   };
 
   return (
@@ -199,14 +212,13 @@ function ProductCard({ product, badges }: { product: ProductResult; badges: stri
             Add to Cart
           </Button>
           <Button 
-            variant="outline"
+            variant="secondary"
             className="flex-1 gap-2"
-            asChild
+            onClick={handleBuyNow}
+            disabled={!product.inStock}
           >
-            <a href={product.url} target="_blank" rel="noopener noreferrer">
-              <ExternalLink className="h-4 w-4" />
-              Buy Now
-            </a>
+            <ShoppingCart className="h-4 w-4" />
+            Buy Now
           </Button>
         </div>
       </div>
