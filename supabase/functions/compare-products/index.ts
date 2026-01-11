@@ -119,6 +119,7 @@ Deno.serve(async (req) => {
             limit: 3,
             scrapeOptions: {
               formats: ['markdown'],
+              includeTags: ['img'],
             },
           }),
         });
@@ -155,6 +156,7 @@ ${searchResults.map((r, i) => `
 URL: ${r.url}
 Title: ${r.title || 'N/A'}
 Description: ${r.description || 'N/A'}
+Metadata: ${JSON.stringify(r.metadata || {})}
 Content: ${(r.markdown || '').slice(0, 2000)}
 `).join('\n')}
 
@@ -169,6 +171,7 @@ Extract products and return this JSON structure:
       "reviews": 1234,
       "store": "amazon.in",
       "url": "full url",
+      "imageUrl": "https://example.com/product-image.jpg",
       "delivery": "delivery info",
       "inStock": true
     }
@@ -183,10 +186,13 @@ Extract products and return this JSON structure:
 
 Rules:
 - Only include products that match the search query
-- Price must be a number (no currency symbols)
+- Price must be a number (no currency symbols) - REQUIRED, skip products without a valid price
+- originalPrice should be the MRP or original price before discount
 - Rating must be between 1-5 or null
 - inStock defaults to true if not clear
-- If no valid products found, return empty products array`;
+- imageUrl: Extract the main product image URL from the metadata (ogImage, image) or from img tags in content. This is VERY IMPORTANT.
+- If no valid products found, return empty products array
+- SKIP products that don't have a valid numeric price`;
 
     console.log('Calling AI for analysis...');
     const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
