@@ -9,7 +9,8 @@ import {
   TrendingDown,
   ThumbsUp,
   ShoppingCart,
-  Sparkles
+  Sparkles,
+  ExternalLink
 } from 'lucide-react';
 import { useCart } from '@/contexts/CartContext';
 import { toast } from 'sonner';
@@ -187,15 +188,27 @@ function ProductCard({ product, badges }: { product: ProductResult; badges: stri
           </div>
         )}
 
-        {/* Add to Cart Button */}
-        <Button 
-          className="w-full gap-2" 
-          onClick={handleAddToCart}
-          disabled={!product.inStock}
-        >
-          <ShoppingCart className="h-4 w-4" />
-          Add to Cart
-        </Button>
+        {/* Action Buttons */}
+        <div className="flex gap-2">
+          <Button 
+            className="flex-1 gap-2" 
+            onClick={handleAddToCart}
+            disabled={!product.inStock}
+          >
+            <ShoppingCart className="h-4 w-4" />
+            Add to Cart
+          </Button>
+          <Button 
+            variant="outline"
+            className="flex-1 gap-2"
+            asChild
+          >
+            <a href={product.url} target="_blank" rel="noopener noreferrer">
+              <ExternalLink className="h-4 w-4" />
+              Buy Now
+            </a>
+          </Button>
+        </div>
       </div>
     </Card>
   );
