@@ -1,6 +1,7 @@
-import { Zap } from 'lucide-react';
+import { Zap, Package } from 'lucide-react';
 import { CartDrawer } from './CartDrawer';
 import { Link } from 'react-router-dom';
+import { Button } from './ui/button';
 
 export function Header() {
   return (
@@ -14,9 +15,12 @@ export function Header() {
         </Link>
         
         <div className="flex items-center gap-4">
-          <p className="text-sm text-muted-foreground hidden sm:block">
-            AI-Powered Price Comparison
-          </p>
+          <Button variant="ghost" size="sm" asChild className="hidden sm:flex gap-2">
+            <Link to="/orders">
+              <Package className="h-4 w-4" />
+              Track Orders
+            </Link>
+          </Button>
           <CartDrawer />
         </div>
       </div>
