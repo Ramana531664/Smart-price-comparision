@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuthContext } from '@/contexts/AuthContext';
 import { 
   ArrowLeft,
   Package,
@@ -15,7 +16,8 @@ import {
   CheckCircle2,
   Clock,
   XCircle,
-  MapPin
+  MapPin,
+  RefreshCw
 } from 'lucide-react';
 
 interface Order {
@@ -66,20 +68,53 @@ const statusConfig: Record<string, { label: string; icon: React.ReactNode; color
 export default function Orders() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const { user } = useAuthContext();
   const [orders, setOrders] = useState<Order[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [searchEmail, setSearchEmail] = useState(searchParams.get('email') || '');
   const [hasSearched, setHasSearched] = useState(false);
 
+  // Auto-fetch orders if user is logged in
   useEffect(() => {
-    if (searchParams.get('email')) {
+    if (user?.email) {
+      setSearchEmail(user.email);
+      fetchOrdersByEmail(user.email);
+    } else if (searchParams.get('email')) {
       handleSearch();
     }
-  }, []);
+  }, [user]);
 
-  const handleSearch = async () => {
-    if (!searchEmail.trim()) return;
-    
+  // Set up realtime subscription
+  useEffect(() => {
+    if (!searchEmail) return;
+
+    const channel = supabase
+      .channel('user-orders')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'orders' },
+        (payload) => {
+          const newOrder = payload.new as Order;
+          const oldOrder = payload.old as Order;
+          
+          if (payload.eventType === 'UPDATE') {
+            setOrders(prev => prev.map(o => 
+              o.id === newOrder.id ? newOrder : o
+            ));
+          } else if (payload.eventType === 'INSERT' && 
+            newOrder.customer_email.toLowerCase() === searchEmail.toLowerCase()) {
+            setOrders(prev => [newOrder, ...prev]);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [searchEmail]);
+
+  const fetchOrdersByEmail = async (email: string) => {
     setIsLoading(true);
     setHasSearched(true);
     
@@ -87,7 +122,7 @@ export default function Orders() {
       const { data, error } = await supabase
         .from('orders')
         .select('*')
-        .eq('customer_email', searchEmail.trim().toLowerCase())
+        .eq('customer_email', email.trim().toLowerCase())
         .order('created_at', { ascending: false });
       
       if (error) throw error;
@@ -98,6 +133,11 @@ export default function Orders() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleSearch = async () => {
+    if (!searchEmail.trim()) return;
+    fetchOrdersByEmail(searchEmail);
   };
 
   const formatDate = (dateString: string) => {

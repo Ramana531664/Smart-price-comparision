@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Header } from '@/components/Header';
 import { Card } from '@/components/ui/card';
@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useCart } from '@/contexts/CartContext';
+import { useAuthContext } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { 
@@ -24,6 +25,7 @@ import {
 export default function Checkout() {
   const navigate = useNavigate();
   const { items, totalAmount, clearCart } = useCart();
+  const { user } = useAuthContext();
   const [isProcessing, setIsProcessing] = useState(false);
   const [orderComplete, setOrderComplete] = useState(false);
   const [orderId, setOrderId] = useState<string | null>(null);
@@ -38,6 +40,13 @@ export default function Checkout() {
     pincode: '',
     paymentMethod: 'card'
   });
+
+  // Pre-fill email if user is logged in
+  useEffect(() => {
+    if (user?.email && !formData.email) {
+      setFormData(prev => ({ ...prev, email: user.email || '' }));
+    }
+  }, [user]);
 
   const [cardData, setCardData] = useState({
     number: '',
@@ -84,8 +93,9 @@ export default function Checkout() {
       // Create orders for each item
       for (const item of items) {
         const { error } = await supabase.from('orders').insert({
+          user_id: user?.id || null,
           customer_name: formData.name,
-          customer_email: formData.email,
+          customer_email: formData.email.toLowerCase(),
           customer_phone: formData.phone,
           shipping_address: formData.address,
           city: formData.city,
