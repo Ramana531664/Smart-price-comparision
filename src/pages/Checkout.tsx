@@ -164,9 +164,15 @@ export default function Checkout() {
               </ul>
             </Card>
 
-            <Button onClick={() => navigate('/')} className="w-full">
-              Continue Shopping
-            </Button>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Button onClick={() => navigate('/orders')} variant="outline" className="flex-1">
+                <Package className="h-4 w-4 mr-2" />
+                Track Order
+              </Button>
+              <Button onClick={() => navigate('/')} className="flex-1">
+                Continue Shopping
+              </Button>
+            </div>
           </div>
         </main>
       </div>
