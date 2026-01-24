@@ -102,12 +102,12 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Search across multiple sites
-    const searchResults: any[] = [];
+    // Search across multiple sites IN PARALLEL for faster results
+    const sites = ['amazon.in', 'flipkart.com', 'myntra.com', 'ajio.com', 'croma.com'];
+    console.log(`Searching ${sites.length} sites in parallel for: ${productName}`);
     
-    for (const site of ['amazon.in', 'flipkart.com', 'myntra.com', 'ajio.com', 'croma.com']) {
+    const searchPromises = sites.map(async (site) => {
       try {
-        console.log(`Searching ${site} for: ${productName}`);
         const searchResponse = await fetch('https://api.firecrawl.dev/v1/search', {
           method: 'POST',
           headers: {
@@ -116,7 +116,7 @@ Deno.serve(async (req) => {
           },
           body: JSON.stringify({
             query: `${productName} price buy site:${site}`,
-            limit: 3,
+            limit: 2, // Reduced from 3 to speed up
             scrapeOptions: {
               formats: ['markdown'],
               includeTags: ['img'],
@@ -126,12 +126,17 @@ Deno.serve(async (req) => {
 
         const searchData = await searchResponse.json();
         if (searchResponse.ok && searchData.data) {
-          searchResults.push(...searchData.data.map((r: any) => ({ ...r, store: site })));
+          return searchData.data.map((r: any) => ({ ...r, store: site }));
         }
+        return [];
       } catch (e) {
         console.error(`Error searching ${site}:`, e);
+        return [];
       }
-    }
+    });
+
+    const searchResultsArrays = await Promise.all(searchPromises);
+    const searchResults = searchResultsArrays.flat();
 
     console.log(`Found ${searchResults.length} search results`);
 
@@ -304,13 +309,21 @@ Rules:
       }
     };
 
-    // Enrich products with image URLs (many marketplaces don't expose it in search results)
-    const enrichedProducts = await Promise.all(
-      products.map(async (p: any) => {
-        const imageUrl = p.imageUrl || (p.url ? await resolveImageUrl(p.url) : undefined);
-        return { ...p, imageUrl };
-      })
-    );
+    // Skip slow image enrichment - rely on AI-extracted images only for speed
+    // Only resolve images for products that don't have one (limited to first 3)
+    const productsNeedingImages = products.filter((p: any) => !p.imageUrl).slice(0, 3);
+    const imagePromises = productsNeedingImages.map(async (p: any) => {
+      const imageUrl = p.url ? await resolveImageUrl(p.url) : undefined;
+      return { url: p.url, imageUrl };
+    });
+    
+    const resolvedImages = await Promise.all(imagePromises);
+    const imageMap = new Map(resolvedImages.map(r => [r.url, r.imageUrl]));
+    
+    const enrichedProducts = products.map((p: any) => ({
+      ...p,
+      imageUrl: p.imageUrl || imageMap.get(p.url) || undefined,
+    }));
 
     const result: ComparisonResult = {
       products: enrichedProducts.map((p: any) => ({
