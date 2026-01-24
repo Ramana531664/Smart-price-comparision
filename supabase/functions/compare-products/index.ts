@@ -116,7 +116,7 @@ Deno.serve(async (req) => {
           },
           body: JSON.stringify({
             query: `${productName} price buy site:${site}`,
-            limit: 2, // Reduced from 3 to speed up
+            limit: 5, // Fetch more products per store
             scrapeOptions: {
               formats: ['markdown'],
               includeTags: ['img'],
