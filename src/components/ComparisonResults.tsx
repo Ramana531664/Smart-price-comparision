@@ -229,6 +229,9 @@ function ProductCard({ product, badges }: { product: ProductResult; badges: stri
 export function ComparisonResults({ results }: ComparisonResultsProps) {
   const { products, recommendation } = results;
 
+  // Filter out products without valid prices FIRST
+  const validProducts = products.filter(p => p.price && p.price > 0);
+
   // Determine badges for each product
   const getBadges = (product: ProductResult): string[] => {
     const badges: string[] = [];
@@ -239,7 +242,7 @@ export function ComparisonResults({ results }: ComparisonResultsProps) {
   };
 
   // Sort products: recommended first, then by price
-  const sortedProducts = [...products].sort((a, b) => {
+  const sortedProducts = [...validProducts].sort((a, b) => {
     const aBadges = getBadges(a).length;
     const bBadges = getBadges(b).length;
     if (aBadges !== bBadges) return bBadges - aBadges;
@@ -264,7 +267,7 @@ export function ComparisonResults({ results }: ComparisonResultsProps) {
       {/* Results Count */}
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold">
-          Found {products.length} products
+          Found {validProducts.length} products
         </h2>
       </div>
 
