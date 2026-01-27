@@ -322,6 +322,7 @@ export default function Orders() {
                           orderId={order.id}
                           orderStatus={order.order_status}
                           customerCity={order.city}
+                          orderDate={order.created_at}
                         />
                       </CollapsibleContent>
                     </Card>
