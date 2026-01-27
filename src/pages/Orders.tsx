@@ -5,8 +5,10 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuthContext } from '@/contexts/AuthContext';
+import { OrderTrackingTimeline } from '@/components/OrderTrackingTimeline';
 import { 
   ArrowLeft,
   Package,
@@ -17,7 +19,7 @@ import {
   Clock,
   XCircle,
   MapPin,
-  RefreshCw
+  ChevronDown
 } from 'lucide-react';
 
 interface Order {
@@ -224,83 +226,106 @@ export default function Orders() {
                 </h2>
                 
                 {orders.map((order) => (
-                  <Card key={order.id} className="p-6 hover:shadow-md transition-shadow">
-                    <div className="flex flex-col sm:flex-row gap-4">
-                      {/* Product Image */}
-                      <div className="sm:w-24 sm:h-24 w-full h-40 rounded-lg overflow-hidden bg-secondary flex-shrink-0">
-                        {order.product_image_url ? (
-                          <img 
-                            src={order.product_image_url}
-                            alt={order.product_name}
-                            className="w-full h-full object-cover"
-                            onError={(e) => {
-                              (e.target as HTMLImageElement).style.display = 'none';
-                            }}
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center text-4xl">
-                            📦
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Order Details */}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex flex-wrap items-start justify-between gap-2 mb-2">
-                          <div>
-                            <h3 className="font-semibold line-clamp-2">{order.product_name}</h3>
-                            <p className="text-sm text-muted-foreground">{order.product_store}</p>
-                          </div>
-                          {getStatusBadge(order.order_status)}
+                  <Collapsible key={order.id}>
+                    <Card className="p-6 hover:shadow-md transition-shadow">
+                      <div className="flex flex-col sm:flex-row gap-4">
+                        {/* Product Image */}
+                        <div className="sm:w-24 sm:h-24 w-full h-40 rounded-lg overflow-hidden bg-secondary flex-shrink-0">
+                          {order.product_image_url ? (
+                            <img 
+                              src={order.product_image_url}
+                              alt={order.product_name}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).style.display = 'none';
+                              }}
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-4xl">
+                              📦
+                            </div>
+                          )}
                         </div>
 
-                        <div className="grid sm:grid-cols-2 gap-4 mt-4 text-sm">
-                          <div>
-                            <p className="text-muted-foreground">Order Date</p>
-                            <p className="font-medium">{formatDate(order.created_at)}</p>
+                        {/* Order Details */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex flex-wrap items-start justify-between gap-2 mb-2">
+                            <div>
+                              <h3 className="font-semibold line-clamp-2">{order.product_name}</h3>
+                              <p className="text-sm text-muted-foreground">{order.product_store}</p>
+                            </div>
+                            {getStatusBadge(order.order_status)}
                           </div>
-                          <div>
-                            <p className="text-muted-foreground">Quantity</p>
-                            <p className="font-medium">{order.quantity}</p>
-                          </div>
-                          <div>
-                            <p className="text-muted-foreground">Total Amount</p>
-                            <p className="font-semibold text-lg">₹{order.total_amount.toLocaleString('en-IN')}</p>
-                          </div>
-                          <div>
-                            <p className="text-muted-foreground">Payment</p>
-                            <div className="flex items-center gap-2">
-                              <Badge variant="secondary" className="capitalize">
-                                {order.payment_method}
-                              </Badge>
-                              <Badge 
-                                variant="outline" 
-                                className={order.payment_status === 'completed' 
-                                  ? 'bg-green-500/20 text-green-600 border-green-500/30' 
-                                  : 'bg-yellow-500/20 text-yellow-600 border-yellow-500/30'}
-                              >
-                                {order.payment_status}
-                              </Badge>
+
+                          <div className="grid sm:grid-cols-2 gap-4 mt-4 text-sm">
+                            <div>
+                              <p className="text-muted-foreground">Order Date</p>
+                              <p className="font-medium">{formatDate(order.created_at)}</p>
+                            </div>
+                            <div>
+                              <p className="text-muted-foreground">Quantity</p>
+                              <p className="font-medium">{order.quantity}</p>
+                            </div>
+                            <div>
+                              <p className="text-muted-foreground">Total Amount</p>
+                              <p className="font-semibold text-lg">₹{order.total_amount.toLocaleString('en-IN')}</p>
+                            </div>
+                            <div>
+                              <p className="text-muted-foreground">Payment</p>
+                              <div className="flex items-center gap-2">
+                                <Badge variant="secondary" className="capitalize">
+                                  {order.payment_method}
+                                </Badge>
+                                <Badge 
+                                  variant="outline" 
+                                  className={order.payment_status === 'completed' 
+                                    ? 'bg-green-500/20 text-green-600 border-green-500/30' 
+                                    : 'bg-yellow-500/20 text-yellow-600 border-yellow-500/30'}
+                                >
+                                  {order.payment_status}
+                                </Badge>
+                              </div>
                             </div>
                           </div>
-                        </div>
 
-                        {/* Shipping Address */}
-                        <div className="mt-4 p-3 rounded-lg bg-secondary/50">
-                          <div className="flex items-start gap-2">
-                            <MapPin className="h-4 w-4 mt-0.5 text-muted-foreground flex-shrink-0" />
-                            <div className="text-sm">
-                              <p className="font-medium">{order.customer_name}</p>
-                              <p className="text-muted-foreground">
-                                {order.shipping_address}, {order.city}, {order.state} - {order.pincode}
-                              </p>
-                              <p className="text-muted-foreground">{order.customer_phone}</p>
+                          {/* Shipping Address */}
+                          <div className="mt-4 p-3 rounded-lg bg-secondary/50">
+                            <div className="flex items-start gap-2">
+                              <MapPin className="h-4 w-4 mt-0.5 text-muted-foreground flex-shrink-0" />
+                              <div className="text-sm">
+                                <p className="font-medium">{order.customer_name}</p>
+                                <p className="text-muted-foreground">
+                                  {order.shipping_address}, {order.city}, {order.state} - {order.pincode}
+                                </p>
+                                <p className="text-muted-foreground">{order.customer_phone}</p>
+                              </div>
                             </div>
                           </div>
+
+                          {/* Track Order Button */}
+                          <CollapsibleTrigger asChild>
+                            <Button 
+                              variant="outline" 
+                              className="mt-4 w-full sm:w-auto gap-2"
+                            >
+                              <Truck className="h-4 w-4" />
+                              Track Order
+                              <ChevronDown className="h-4 w-4 transition-transform duration-200 group-data-[state=open]:rotate-180" />
+                            </Button>
+                          </CollapsibleTrigger>
                         </div>
                       </div>
-                    </div>
-                  </Card>
+
+                      {/* Tracking Timeline - Collapsible */}
+                      <CollapsibleContent className="mt-4 pt-4 border-t">
+                        <OrderTrackingTimeline 
+                          orderId={order.id}
+                          orderStatus={order.order_status}
+                          customerCity={order.city}
+                        />
+                      </CollapsibleContent>
+                    </Card>
+                  </Collapsible>
                 ))}
               </div>
             ) : (
