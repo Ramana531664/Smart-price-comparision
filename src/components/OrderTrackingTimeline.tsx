@@ -7,7 +7,8 @@ import {
   MapPin, 
   Clock,
   Warehouse,
-  Home
+  Home,
+  CircleDot
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -24,6 +25,7 @@ interface OrderTrackingTimelineProps {
   orderId: string;
   orderStatus: string;
   customerCity: string;
+  orderDate: string;
 }
 
 const statusIcons: Record<string, React.ReactNode> = {
@@ -31,21 +33,57 @@ const statusIcons: Record<string, React.ReactNode> = {
   'processing': <Clock className="h-5 w-5" />,
   'picked_up': <Warehouse className="h-5 w-5" />,
   'in_transit': <Truck className="h-5 w-5" />,
+  'shipped': <Truck className="h-5 w-5" />,
   'out_for_delivery': <MapPin className="h-5 w-5" />,
   'delivered': <Home className="h-5 w-5" />,
   'completed': <CheckCircle2 className="h-5 w-5" />,
 };
 
-const defaultTrackingSteps = [
-  { status: 'order_placed', label: 'Order Placed', location: 'Online' },
-  { status: 'processing', label: 'Processing', location: 'Warehouse' },
-  { status: 'shipped', label: 'Shipped', location: 'In Transit' },
-  { status: 'delivered', label: 'Delivered', location: 'Destination' },
-];
-
-export function OrderTrackingTimeline({ orderId, orderStatus, customerCity }: OrderTrackingTimelineProps) {
+export function OrderTrackingTimeline({ orderId, orderStatus, customerCity, orderDate }: OrderTrackingTimelineProps) {
   const [trackingEvents, setTrackingEvents] = useState<TrackingEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Define the order journey stages
+  const journeyStages = [
+    { 
+      status: 'processing', 
+      label: 'Order Placed & Processing', 
+      icon: <Package className="h-5 w-5" />,
+      description: 'Order confirmed and being prepared'
+    },
+    { 
+      status: 'shipped', 
+      label: 'Shipped', 
+      icon: <Truck className="h-5 w-5" />,
+      description: 'Package picked up and in transit'
+    },
+    { 
+      status: 'out_for_delivery', 
+      label: 'Out for Delivery', 
+      icon: <MapPin className="h-5 w-5" />,
+      description: 'Package is out for delivery in your area'
+    },
+    { 
+      status: 'delivered', 
+      label: 'Delivered', 
+      icon: <Home className="h-5 w-5" />,
+      description: 'Package delivered successfully'
+    },
+  ];
+
+  // Map order status to journey stage index
+  const getStageIndex = (status: string): number => {
+    switch (status) {
+      case 'processing': return 0;
+      case 'shipped': return 1;
+      case 'out_for_delivery': return 2;
+      case 'delivered': return 3;
+      case 'cancelled': return -1;
+      default: return 0;
+    }
+  };
+
+  const currentStageIndex = getStageIndex(orderStatus);
 
   useEffect(() => {
     fetchTrackingEvents();
@@ -109,30 +147,10 @@ export function OrderTrackingTimeline({ orderId, orderStatus, customerCity }: Or
     };
   };
 
-  // If no tracking events exist, show default status-based timeline
-  const getDefaultTimeline = () => {
-    const statusOrder = ['processing', 'shipped', 'delivered', 'cancelled'];
-    const currentIndex = statusOrder.indexOf(orderStatus);
-    
-    return defaultTrackingSteps.map((step, index) => {
-      const isCompleted = index <= currentIndex && orderStatus !== 'cancelled';
-      const isCurrent = index === currentIndex && orderStatus !== 'cancelled';
-      const isCancelled = orderStatus === 'cancelled';
-      
-      return {
-        ...step,
-        isCompleted,
-        isCurrent,
-        isCancelled: isCancelled && index === currentIndex,
-        location: step.status === 'delivered' ? customerCity : step.location
-      };
-    });
-  };
-
   if (isLoading) {
     return (
       <div className="animate-pulse space-y-4 py-4">
-        {[1, 2, 3].map(i => (
+        {[1, 2, 3, 4].map(i => (
           <div key={i} className="flex gap-4">
             <div className="w-10 h-10 rounded-full bg-muted" />
             <div className="flex-1 space-y-2">
@@ -145,135 +163,185 @@ export function OrderTrackingTimeline({ orderId, orderStatus, customerCity }: Or
     );
   }
 
-  // Use actual tracking events if available, otherwise show default timeline
-  if (trackingEvents.length > 0) {
-    return (
-      <div className="py-4">
+  const isCancelled = orderStatus === 'cancelled';
+
+  return (
+    <div className="py-4 space-y-6">
+      {/* Order Journey Timeline */}
+      <div>
         <h4 className="font-semibold mb-4 flex items-center gap-2">
           <Truck className="h-4 w-4 text-primary" />
-          Tracking Details
+          Order Journey
         </h4>
-        <div className="relative">
-          {/* Timeline line */}
-          <div className="absolute left-5 top-0 bottom-0 w-0.5 bg-border" />
-          
-          <div className="space-y-6">
-            {trackingEvents.map((event, index) => {
-              const { date, time } = formatDateTime(event.timestamp);
-              const isLatest = index === trackingEvents.length - 1;
+
+        {isCancelled ? (
+          <div className="bg-destructive/10 border border-destructive/30 rounded-lg p-4 text-center">
+            <p className="text-destructive font-medium">This order has been cancelled</p>
+          </div>
+        ) : (
+          <div className="relative">
+            {journeyStages.map((stage, index) => {
+              const isCompleted = index < currentStageIndex;
+              const isCurrent = index === currentStageIndex;
+              const isPending = index > currentStageIndex;
               
+              // Calculate estimated/actual times
+              const orderDateTime = formatDateTime(orderDate);
+              let stageTime = null;
+              
+              if (index === 0 && (isCompleted || isCurrent)) {
+                stageTime = orderDateTime;
+              }
+              
+              // Check if we have actual tracking data for this stage
+              const trackingEvent = trackingEvents.find(e => e.status === stage.status);
+              if (trackingEvent) {
+                stageTime = formatDateTime(trackingEvent.timestamp);
+              }
+
               return (
-                <div key={event.id} className="relative flex gap-4">
+                <div key={stage.status} className="relative flex gap-4 pb-8 last:pb-0">
+                  {/* Vertical line */}
+                  {index < journeyStages.length - 1 && (
+                    <div 
+                      className={cn(
+                        "absolute left-5 top-10 w-0.5 h-full -ml-px",
+                        isCompleted ? "bg-green-500" : "bg-border"
+                      )}
+                    />
+                  )}
+                  
                   {/* Icon */}
                   <div className={cn(
-                    "relative z-10 flex items-center justify-center w-10 h-10 rounded-full border-2",
-                    isLatest 
-                      ? "bg-primary border-primary text-primary-foreground" 
-                      : "bg-background border-green-500 text-green-500"
+                    "relative z-10 flex items-center justify-center w-10 h-10 rounded-full border-2 flex-shrink-0 transition-all",
+                    isCompleted && "bg-green-500 border-green-500 text-white",
+                    isCurrent && "bg-primary border-primary text-primary-foreground ring-4 ring-primary/20",
+                    isPending && "bg-muted border-border text-muted-foreground"
                   )}>
-                    {statusIcons[event.status] || <Package className="h-5 w-5" />}
+                    {isCompleted ? (
+                      <CheckCircle2 className="h-5 w-5" />
+                    ) : (
+                      stage.icon
+                    )}
                   </div>
                   
                   {/* Content */}
-                  <div className="flex-1 pb-2">
+                  <div className="flex-1 min-w-0 pt-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className={cn(
-                        "font-medium capitalize",
-                        isLatest && "text-primary"
+                        "font-medium",
+                        isCompleted && "text-green-600",
+                        isCurrent && "text-primary",
+                        isPending && "text-muted-foreground"
                       )}>
-                        {event.status.replace(/_/g, ' ')}
+                        {stage.label}
                       </span>
-                      {isLatest && (
-                        <span className="text-xs bg-primary/20 text-primary px-2 py-0.5 rounded-full">
+                      {isCurrent && (
+                        <span className="text-xs bg-primary text-primary-foreground px-2 py-0.5 rounded-full animate-pulse">
                           Current
+                        </span>
+                      )}
+                      {isCompleted && (
+                        <span className="text-xs bg-green-500/20 text-green-600 px-2 py-0.5 rounded-full">
+                          Completed
                         </span>
                       )}
                     </div>
                     
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
-                      <MapPin className="h-3 w-3" />
-                      <span>{event.location}</span>
-                    </div>
+                    <p className={cn(
+                      "text-sm mt-1",
+                      isPending ? "text-muted-foreground/60" : "text-muted-foreground"
+                    )}>
+                      {stage.description}
+                    </p>
                     
-                    {event.description && (
-                      <p className="text-sm text-muted-foreground mt-1">
-                        {event.description}
-                      </p>
+                    {/* Location for delivered stage */}
+                    {stage.status === 'delivered' && (isCompleted || isCurrent) && (
+                      <div className="flex items-center gap-1 text-sm text-muted-foreground mt-1">
+                        <MapPin className="h-3 w-3" />
+                        <span>{customerCity}</span>
+                      </div>
                     )}
                     
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground mt-2">
-                      <Clock className="h-3 w-3" />
-                      <span>{date} at {time}</span>
+                    {/* Show time if available */}
+                    {stageTime && (
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground mt-2">
+                        <Clock className="h-3 w-3" />
+                        <span>{stageTime.date} at {stageTime.time}</span>
+                      </div>
+                    )}
+                    
+                    {/* Show tracking event location if available */}
+                    {trackingEvent && (
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
+                        <MapPin className="h-3 w-3" />
+                        <span>{trackingEvent.location}</span>
+                        {trackingEvent.description && (
+                          <span className="text-muted-foreground/70">- {trackingEvent.description}</span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Detailed Tracking Events (if any) */}
+      {trackingEvents.length > 0 && (
+        <div className="border-t pt-4">
+          <h4 className="font-semibold mb-4 flex items-center gap-2 text-sm">
+            <CircleDot className="h-4 w-4 text-primary" />
+            Detailed Tracking Updates
+          </h4>
+          <div className="space-y-3">
+            {trackingEvents.slice().reverse().map((event) => {
+              const { date, time } = formatDateTime(event.timestamp);
+              
+              return (
+                <div key={event.id} className="flex gap-3 text-sm">
+                  <div className="w-2 h-2 rounded-full bg-primary mt-1.5 flex-shrink-0" />
+                  <div className="flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-medium capitalize">
+                        {event.status.replace(/_/g, ' ')}
+                      </span>
+                      <span className="text-muted-foreground">•</span>
+                      <span className="text-muted-foreground">{event.location}</span>
                     </div>
+                    {event.description && (
+                      <p className="text-muted-foreground">{event.description}</p>
+                    )}
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {date} at {time}
+                    </p>
                   </div>
                 </div>
               );
             })}
           </div>
         </div>
-      </div>
-    );
-  }
+      )}
 
-  // Default timeline based on order status
-  const timeline = getDefaultTimeline();
-  
-  return (
-    <div className="py-4">
-      <h4 className="font-semibold mb-4 flex items-center gap-2">
-        <Truck className="h-4 w-4 text-primary" />
-        Order Progress
-      </h4>
-      
-      {/* Progress bar */}
-      <div className="relative mb-6">
-        <div className="flex justify-between mb-2">
-          {timeline.map((step, index) => (
-            <div 
-              key={step.status}
-              className={cn(
-                "flex flex-col items-center flex-1",
-                index === 0 && "items-start",
-                index === timeline.length - 1 && "items-end"
-              )}
-            >
-              <div className={cn(
-                "w-8 h-8 rounded-full flex items-center justify-center border-2 z-10",
-                step.isCompleted || step.isCurrent
-                  ? "bg-primary border-primary text-primary-foreground"
-                  : step.isCancelled
-                    ? "bg-destructive border-destructive text-destructive-foreground"
-                    : "bg-muted border-border text-muted-foreground"
-              )}>
-                {statusIcons[step.status] || <Package className="h-4 w-4" />}
-              </div>
-              <span className={cn(
-                "text-xs mt-2 text-center",
-                (step.isCompleted || step.isCurrent) ? "text-foreground font-medium" : "text-muted-foreground"
-              )}>
-                {step.label}
-              </span>
+      {/* Delivery Info */}
+      {!isCancelled && currentStageIndex < 3 && (
+        <div className="bg-secondary/50 rounded-lg p-4">
+          <div className="flex items-start gap-3">
+            <MapPin className="h-5 w-5 text-primary mt-0.5" />
+            <div>
+              <p className="font-medium text-sm">Delivery Address</p>
+              <p className="text-sm text-muted-foreground">{customerCity}</p>
+              <p className="text-xs text-muted-foreground mt-2">
+                {currentStageIndex === 0 && "Your order is being processed and will be shipped soon."}
+                {currentStageIndex === 1 && "Your order is on its way! Expected delivery in 2-5 business days."}
+                {currentStageIndex === 2 && "Your order will be delivered today!"}
+              </p>
             </div>
-          ))}
+          </div>
         </div>
-        
-        {/* Progress line */}
-        <div className="absolute top-4 left-4 right-4 h-0.5 bg-border -z-0">
-          <div 
-            className="h-full bg-primary transition-all duration-500"
-            style={{ 
-              width: `${(timeline.filter(s => s.isCompleted).length / (timeline.length - 1)) * 100}%` 
-            }}
-          />
-        </div>
-      </div>
-      
-      <p className="text-sm text-muted-foreground text-center">
-        {orderStatus === 'processing' && 'Your order is being prepared for shipment'}
-        {orderStatus === 'shipped' && 'Your order is on its way to you'}
-        {orderStatus === 'delivered' && 'Your order has been delivered successfully'}
-        {orderStatus === 'cancelled' && 'This order has been cancelled'}
-      </p>
+      )}
     </div>
   );
 }
