@@ -185,12 +185,30 @@ export function OrderTrackingTimeline({ orderId, orderStatus, customerCity, orde
               const isCurrent = index === currentStageIndex;
               const isPending = index > currentStageIndex;
               
-              // Calculate estimated/actual times
-              const orderDateTime = formatDateTime(orderDate);
+              // Calculate estimated/actual times based on order date
+              const orderDateObj = new Date(orderDate);
               let stageTime = null;
+              let estimatedTime = null;
               
-              if (index === 0 && (isCompleted || isCurrent)) {
-                stageTime = orderDateTime;
+              // Calculate estimated dates for each stage
+              if (index === 0) {
+                // Order placed - use actual order date
+                stageTime = formatDateTime(orderDate);
+              } else if (index === 1) {
+                // Shipped - estimated 1-2 days after order
+                const shippedDate = new Date(orderDateObj);
+                shippedDate.setDate(shippedDate.getDate() + 2);
+                estimatedTime = formatDateTime(shippedDate.toISOString());
+              } else if (index === 2) {
+                // Out for delivery - estimated 3-4 days after order
+                const outForDeliveryDate = new Date(orderDateObj);
+                outForDeliveryDate.setDate(outForDeliveryDate.getDate() + 4);
+                estimatedTime = formatDateTime(outForDeliveryDate.toISOString());
+              } else if (index === 3) {
+                // Delivered - estimated 4-5 days after order
+                const deliveryDate = new Date(orderDateObj);
+                deliveryDate.setDate(deliveryDate.getDate() + 5);
+                estimatedTime = formatDateTime(deliveryDate.toISOString());
               }
               
               // Check if we have actual tracking data for this stage
@@ -263,11 +281,27 @@ export function OrderTrackingTimeline({ orderId, orderStatus, customerCity, orde
                       </div>
                     )}
                     
-                    {/* Show time if available */}
-                    {stageTime && (
+                    {/* Show actual time if completed/current, or estimated time for pending */}
+                    {stageTime && (isCompleted || isCurrent) && (
                       <div className="flex items-center gap-1 text-xs text-muted-foreground mt-2">
                         <Clock className="h-3 w-3" />
-                        <span>{stageTime.date} at {stageTime.time}</span>
+                        <span>{isCompleted ? 'Completed on' : 'Started on'} {stageTime.date} at {stageTime.time}</span>
+                      </div>
+                    )}
+                    
+                    {/* Show estimated time for pending stages */}
+                    {isPending && estimatedTime && (
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground/70 mt-2">
+                        <Clock className="h-3 w-3" />
+                        <span>Expected by {estimatedTime.date}</span>
+                      </div>
+                    )}
+                    
+                    {/* Show estimated time for current stage */}
+                    {isCurrent && estimatedTime && !stageTime && (
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground mt-2">
+                        <Clock className="h-3 w-3" />
+                        <span>Expected by {estimatedTime.date}</span>
                       </div>
                     )}
                     
