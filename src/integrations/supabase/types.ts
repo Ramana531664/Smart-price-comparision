@@ -14,6 +14,44 @@ export type Database = {
   }
   public: {
     Tables: {
+      order_tracking: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          location: string
+          order_id: string
+          status: string
+          timestamp: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          location: string
+          order_id: string
+          status: string
+          timestamp?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          location?: string
+          order_id?: string
+          status?: string
+          timestamp?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_tracking_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       orders: {
         Row: {
           city: string
